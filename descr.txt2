@@ -1,0 +1,356 @@
+О шаблоне
+===
+Представляю вам "фреймворк" с основным функционалом для создания примитивной усреднённой рпгшки с сейвами
+Реализован на Lua, типы проставлены через плагин LuaAnalysis. Код в основном в стиле фп, но разбитый на файлы; однако есть и некоторый функционал, оформленный в виде закрытых модулей, которым нужно довольно много доп кода для работы, пример - save-load-система, что читает и пишет в файла, и автоматически синхронизирует сейв код между игроками
+
+Также имеется "полигон", что разделён на 12 (на момент написания) частей, в каждой части показан какой-то кусочек из общего функционала
+Эти части также оформлены в виде отдельных файлов для простоты понимания
+
+Комментарии:
+нестандартные ивенты на каждый тип могут быть спокойно расширены, и добавлены в хуки при вызове функций.
+т.к. это не настоящий ивент без триггера, при вызове колбека единственным параметром функции идёт сам объект
+
+
+
+Общий список контента:
+===
+
+((кат Статы
+* есть основные статы и процентные, базово каждый юнит имеет процентные статы равные 100
+* все статы применяются как белые, зелёные в системе отсутствуют
+* каждый стат имеет свою функцию обновления, поэтому вы можете легко добавлять свои кастомные статы
+* описание статов
+	* можно добавлять своё описание статов, чтобы потом генерировать более красивые описания
+	* это используется в генераторе описания статов предметов
+((код
+RegisterStatDef(STAT_KEY_DAMAGE, "damage", "Урон", "")
+RegisterStatDef(STAT_KEY_ATTACKSPEED_PERCENT, "as_percent", "Скорость Атаки", "%")
+))
+* пример функции обновления стата
+((код lua
+---@param u unit
+local function OnAgiUpdate(u)
+	local stat = GetUnitStat(u, STAT_KEY_AGI)
+	local perc = GetUnitStat(u, STAT_KEY_AGI_PERCENT)
+	local value = stat * (perc * 0.01)
+	SetHeroAgi(u, R2I(value), true)
+end
+
+RegisterStatUpdater(STAT_KEY_AGI, OnAgiUpdate)
+RegisterStatUpdater(STAT_KEY_AGI_PERCENT, OnAgiUpdate)
+))
+* кат стат DPS
+	* кастомный стат, который рассчитывает атаку у юнита в зависимости от его текущей скорости атаки
+	* пример: aps = атаки в секунду
+		* 100dps с 2aps = 50 урона; 
+		* 100dps с 0.5aps = 200 урона
+	* лежит полностью в отдельном файлике, при желании можно выпилить
+	* на юнитов включается через
+((код
+RegisterUnitTypeUseDPS(id, flag)
+RegisterUnitUseDPS(unit, flag)
+))
+	* обновление стата:
+((код
+---@param u unit
+local function OnDPSUpdate(u)
+	if(IsUnitUsingDPS(u) == false)then return end
+
+	local stat = GetUnitStat(u, STAT_KEY_DPS)
+	local perc = GetUnitStat(u, STAT_KEY_DPS_PERCENT)
+	local value = stat * (perc * 0.01)
+
+	local as_cd = GetUnitStat(u, STAT_KEY_BASE_ATTACKSPEED)
+	local as_perc = GetUnitStat(u, STAT_KEY_ATTACKSPEED_PERCENT)
+
+	local cd = as_cd / (as_perc * 0.01)
+
+	local aps = 1 / cd
+	local dmg = value / aps
+	SetUnitBaseDamageByIndex(u, 0, R2I(dmg))
+end
+))
+* весь список статов:
+((код
+STAT_KEY_DAMAGE 
+STAT_KEY_ARMOUR 
+STAT_KEY_LIFE 
+STAT_KEY_MANA 
+STAT_KEY_LIFE_REGEN 
+STAT_KEY_MANA_REGEN 
+STAT_KEY_MOVE_SPEED 
+STAT_KEY_DAMAGE_PERCENT 
+STAT_KEY_ARMOUR_PERCENT 
+STAT_KEY_LIFE_PERCENT 
+STAT_KEY_MANA_PERCENT 
+STAT_KEY_LIFE_REGEN_PERCENT 
+STAT_KEY_MANA_REGEN_PERCENT 
+STAT_KEY_MOVE_SPEED_PERCENT 
+STAT_KEY_STR 
+STAT_KEY_AGI 
+STAT_KEY_INT 
+STAT_KEY_STR_PERCENT 
+STAT_KEY_AGI_PERCENT 
+STAT_KEY_INT_PERCENT 
+STAT_KEY_BASE_ATTACKSPEED 
+STAT_KEY_ATTACKSPEED_PERCENT 
+STAT_KEY_DPS 
+STAT_KEY_DPS_PERCENT 
+))
+))
+((кат Предметы
+* автоматический пересчёт статов при подборе/потере предмета со статами
+* кастомный инит: 
+	* автоматически вызывает колбек в конце инициализации
+((код 
+RegisterItemInitCallback(itemid, callback)
+))
+* стандартные ивенты: 
+((код 
+RegisterItemExEvent(itemid, event_type, callback)
+
+EX_EVENT_ITEM_PICKUP
+EX_EVENT_ITEM_DROP
+EX_EVENT_ITEM_USE
+EX_EVENT_ITEM_SELL
+EX_EVENT_ITEM_PAWN
+))
+* кастомные ивенты: 
+((код
+RegisterItemExEvent2(itemid, event_type, callback)
+
+EX_EVENT_ITEM_C_CREATED -- hook, CreateItem
+EX_EVENT_ITEM_C_REMOVED -- hook, RemoveItem
+))
+* регистрация аттача на предмет: 
+	* аттач висит на юните, пока предмет находится в инвентаре
+((код
+RegisterItemAttach(itemid, model, attach_point)
+))
+* регистрация статов по itemid:
+((код
+RegisterItemStats_A(itemid, damage, armour, life, mana, life_regen, mana_regen, move_speed)
+RegisterItemStats_AP(itemid, damage_perc, armour_perc, life_perc, mana_perc, life_regen_perc, mana_regen_perc, move_speed_perc)
+RegisterItemStats_B(itemid, str, agi, int)
+RegisterItemStats_BP(itemid, str_perc, agi_perc, int_perc)
+RegisterItemStats_C(itemid, as_perc)
+RegisterItemStats_D(itemid, dps, dps_perc)
+))
+* колбек на ивент юнита
+	* пока предмет в инвентаре, колбек вызывается из нужного ивента юнита
+((код
+RegisterCallbackOnUnitEventOnItem(itemid, ex_unit_event_type, callback)
+))
+))
+
+((кат Юниты
+* кастомный инит: 
+	* автоматически вызывает колбек в конце инициализации
+((код 
+RegisterUnitInitCallback(itemid, callback)
+))
+* стандартные ивенты: 
+((код
+RegisterUnitExEvent(unit, event_type, callback)
+
+EX_EVENT_UNIT_ATTACKING 
+EX_EVENT_UNIT_DAMAGED 
+EX_EVENT_UNIT_DAMAGING 
+EX_EVENT_UNIT_SPELL_EFFECT 
+EX_EVENT_UNIT_DEATH 
+EX_EVENT_UNIT_KILL 
+EX_EVENT_HERO_LEVEL 
+))
+* кастомные ивенты: 
+((код
+RegisterUnitExEvent2(unitid, event_type, callback)
+
+EX_EVENT_UNIT_C_CREATED -- hook, CreateUnitC
+EX_EVENT_UNIT_C_REMOVED -- hook, RemoveUnitC
+))
+* регистрация стартовых статов по unitid:
+	* базовые процентные статы у юнитов всегда равны 100
+((код
+RegisterDefaultUnitStats_A(unitid, damage, armour, life, mana, life_regen, mana_regen, move_speed)
+RegisterDefaultUnitStats_B(unitid, str, agi, int)
+RegisterDefaultUnitStats_C(unitid, base_as_cd)
+))
+* Статы из РО
+	* все статы из РО перезаписываются, поэтому настоятельно рекомендую прописывать все возможные статы в коде, чтобы не стрелять себе в колено
+	* есть 2 проверки 
+		* дефолтные статы через unitid, их может не быть впринципе
+		* конкретный стат, если он не найден
+	* при любом из раскладов, выводится сообщение в чат, и стат берётся из базового шаблона
+	* функцией можно переключать варны, изначально варны включены
+((код
+ShowUnitstatWarns(flag)
+))
+))
+((кат Абилки
+* кастомный инит: 
+	* автоматичеки вызывает колбек в конце инициализации:
+((код
+RegisterAbilityExEvent(aid, event_type, callback)
+))
+* стандартные ивенты: 
+((код
+RegisterAbilityExEvent(aid, event_type, callback)
+
+EX_EVENT_ABILITY_CAST 
+EX_EVENT_ABILITY_CAST_END 
+EX_EVENT_ABILITY_CHANNEL 
+EX_EVENT_ABILITY_EFFECT 
+EX_EVENT_ABILITY_FINISH 
+EX_EVENT_ABILITY_LEARN 
+))
+* кастомные ивенты: 
+((код
+RegisterAbilityExEvent2(aid, event_type, callback)
+
+EX_EVENT_ABILITY_C_ADD -- hook, UnitAddAbilityC
+EX_EVENT_ABILITY_C_REMOVE -- hook, UnitRemoveAbilityC
+))
+))
+((кат Крафт
+* возможность крафтить предметы (удалять предметы, после - добавлять результат)
+* добавление новых рецептов
+((код
+RegisterCraftRecipe(result, mat1, mat2, mat3, mat4, mat5, mat6)
+))
+* список крафтов
+((код
+ShowAllCrafts(player)
+
+ShowItemCrafts(player, item)
+ShowRecipeToPlayer(player, recipe)	
+	
+GetPossibleCrafts(u)
+GetPossibleCrafts2(item_list)		
+))
+* диалог крафта
+((код
+ShowCraftingDialog(u)
+ShowCraftingDialog2(u, item_list)
+))
+))
+((кат Респавн Юнитов
+	* автоматически создаёт на изначальном месте нового юнита через заданное время 
+((код
+RegisterUnitTypeRespawnTime(unitid, resp_time_sec)
+))
+))
+((кат Лут из Юнитов
+	* при смерти юнита создаёт предметы с определённым шансом, можно с текстом
+((код
+RegisterUnitLoot(unitid, itemid, drop_chance)
+RegisterUnitLootWithText(unitid, itemid, drop_chance)
+))
+))
+((кат Чат Команды
+* продвинутая система, что разбивает всё на токены по пробелу, поэтому "-u" и "-u c" считаются разными командами
+* общий шаблон - "tokens [params]"
+* добавлене чат команд
+((код
+---@param action fun(player: player, args: string): void
+---@param description string
+---@param commands string[]
+ChatCommandList.AddCommand = function(action, description, commands)
+
+ChatCommandList.AddCommand(Chat_PrintSelectedUnit, "prints name of selected unit", {"-print unit name", "-pun", "-p u n"})
+))
+* вывод всех команд
+((код
+---@param player player
+ChatCommandList.PrintAll = function(player)
+))
+))
+((кат Добавление актуальных статов в описания Предметов
+* выполнено в виде отдельного файла с лишь одной функцией которую нужно вызвать в конце инита
+((код 
+Execute_RebuildItemDescriptions()
+))
+* эта функция парсит всю базу предметов, генерирует строку для каждого стата и дописывает все статы в предмет
+* использует StatDef для каждого стата, что не равен нулю
+* размер тултипа всё ещё ограничен, поэтому что-то может и не влезть
+))
+((кат Сейв-Система с Работой с Файлами и Синхронизацией
+* самая сложная конструкция в этом проекте
+* зрение игрока:
+	* -save d сохраняет текущие данные в файл с названием d
+	* -load d загружает данные из файла с названием d
+* работа под капотом:
+	* игрок пишет "-save d" в чат
+		* идёт сбор игровых данных об игроке
+		* игровые данные конвертируются в текстовые
+		* текстовые данные шифруются в строку
+		* собирается шаблон файла
+		* идёт попытка записи файла (локальная)
+		* идёт синхронизация и вызов колбека если игрок успешно сохранился
+	* игрок пишет "-load d" в чат
+		* идёт попытка чтения файла (локально)
+		* идёт попытка парсинга файла (локально)
+		* идёт попытка успешной расшифровки кода (локально)
+		* вызывается синхронизация, создание объектов и вызов колбека при успешной загрузке
+* также есть текстовый вариант
+	* игрок пишет "-code begin" в чат
+	* игрок отправляет код в следующих сообщениях, разделяя код как ему удобно
+	* игрок пишет "-code end"
+	* идёт попытка расшифровки
+	* идёт создание объектов и вызов колбека успешной загрузки
+* как выглядит сейв файл
+((код
+version: 1.0 alpha
+timestamp: 20:32:20 21 06 2023
+code:
+eyJoZXJvX2lkIjoiaDAwMyIsImdvbGQiOjAsIml0ZW1zIjpbIkkwME8iLCJJMDBOIiwiSTAwUCIsIkkwMFAiLCJJMDBOIiwiSTAwTyIsIkkwME8iLCJJMDBOIiwiSTAwUCIsIkkwMFAiLCJJMDBOIiwiSTAwTyJdfQ==
+))
+))
+
+--------------------
+
+
+Список Контента на Полигонe
+===
+* часть 0 - Базовые настройки
+	* создание юнита, регистрация статов по unitid, воскрешение при смерти
+
+* часть 1 - Предметы
+	* создание предмета, регистрация эффекта к предмету, смена описания через колбек, 
+
+* часть 2 - Предметы со статами
+	* регистрация основных статов, регистрация процентных статов, генерация описания
+
+* часть 3 - Колбеки предметов
+	* продажа предмета, покупка предмета, потеря предмета
+
+* часть 4 - Колбеки Способностей
+	* onChannel, onCast, onEffect, onFinish, onCastEnd
+
+* часть 5 - Колбеки Юнитов
+	* добавление авто-колбеков через предмет - onDeath, onSpellEffect, onAttack, onDamaging, onDamaged
+
+* часть 6 - Базовые крафты
+	* создание рецептов, функция крафта из инвентаря юнита
+
+* часть 7 - Продвинутые крафты
+	* функция крафта из предметов из нескольких инвентарей
+
+* часть 8 - Работа с крафтами
+	* крафты из предмета, все крафты
+
+* часть 9 - Лут с юнитов
+	* регистрация статов юнита, регистрация лута, регистрация респавна
+
+* часть 10 - стат DPS
+	* регистрация стата DPS на предметах, включение использования юнитом DPS вместо обычного урона
+
+* часть 11 - Чат команды
+	* регистрация чат команд, базовый показ текущих статов юнита, тестовые команды для конвертации id - fourcc и fourci, показ всех команд чата
+
+* часть 12 - Сейв система
+	* регистрация колбеков при успешных загрузке и сохранении, сбор игровых данных, восстановление игровых данных (см SavedataGenerator.lua)
+	
+
+Бонуска
+===
+

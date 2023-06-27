@@ -1,0 +1,75 @@
+name: self is global
+status: medium, cannot be work with, but needs to be remembered
+description: userdata == war3 object; if key not found in userdata as self, it further indexes _G
+problems: appears when referencing userdata as self in object functions;
+    name collision with existing global tables, as they also gets indexed if key is same
+case:
+
+  --global
+  aboba = {name = "abigus"}
+
+  local u = CreateUnit(Player(0), FourCC("Hpal"), 0, 0, 0)
+  printd(u.aboba)                                           --> nil
+  printd(u.aboba and u.aboba.name)                          --> nil
+
+  function u:scopedFunc()
+    printd(self.aboba)                                      --> table: 18770178; expected: nil
+    printd(self.aboba and self.aboba.name)                  --> abigus; expected: nil
+  end
+  u:scopedFunc()
+
+
+name: Stack Rip
+status: critical, further work not possible
+description|problems: stack dies and variables and params randomly disappears after some accessing to userdata
+case:
+
+    TimerStart(CreateTimer(), 1, false,function ()
+      local t = {}
+
+      for i = 0, 100 do
+        local u = CreateUnit(Player(0), FourCC("Hvsh"), 0, 0, 0)
+
+        function u:objectFunc(num)
+          self.t = self.t or {}
+          self.t[num] = num
+        end
+
+        t[i] = u
+      end
+
+      for i = 0, 100 do
+        for j = 0, 10000 do
+          local u = t[i]
+          local status, error_msg = pcall(function()
+            u:objectFunc(j)
+          end)
+
+          if(status == false)then
+            printdf("i: %s, j: %s, err: %s", i, j, error_msg)
+            --> i: 0, j: 2685, err: Maps\SirenRpgMaker\src\main.lua:87: attempt to call a nil value (method 'objectFunc')
+            return
+          end
+
+        end
+      end
+
+    end)
+
+name: Non-Suspended Coroutine
+status: medium, needs to be remembered
+problems: EVENT_PLAYER_UNIT_DROP_ITEM -> RemoveItem(GetManipulatedItem()) spawns error after some
+case:
+    RegisterItemExEvent(id, EX_EVENT_ITEM_DROP, function()
+       RemoveItem(GetManipulatedItem())
+    end)
+
+    --> [Lua ERROR]: cannot resume non-suspended coroutine
+    --[[
+    stack traceback:
+        [C]: in upvalue 'RemoveItemOrigin'
+        Maps\SirenRpgMaker\src\libs\items.lua:142: in function 'RemoveItem'
+        Maps\SirenRpgMaker\src\content\part3.lua:30: in local 'callback'
+        Maps\SirenRpgMaker\src\libs\items.lua:45: in upvalue 'ExecuteItemExEvent'
+        Maps\SirenRpgMaker\src\libs\items.lua:59: in function <Maps\SirenRpgMaker\src\libs\items.lua:57>
+    ]]
