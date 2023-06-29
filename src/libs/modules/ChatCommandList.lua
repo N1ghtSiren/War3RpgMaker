@@ -19,9 +19,10 @@ local cmd_list = --[[---@type chatCommand[] ]] NewOrderedTable()
 ---@param str string
 ---@return chatCommandTokens
 ChatCommandList.SplitToTokens = function(str)
+  printd(str)
   local t = {}
 
-  string.gsub(str, "%S+", function(d)
+  string.gsub(str, "[%S]+", function(d)
     table.insert(t, d)
     return nil
   end)

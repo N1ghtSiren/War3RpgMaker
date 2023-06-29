@@ -60,12 +60,9 @@ local function PrepareInstance(sender, aliveTimeSec)
   local instance = Alloc(sender)
   instance.timer = CreateTimer()
 
-  printd("sync: prepared instance")
-
   TimerStart(instance.timer, aliveTimeSec, false, function()
     Delete(instance)
     DestroyTimer(GetExpiredTimer())
-    printd("sync: instance deleted by timer")
   end)
 
   return instance
@@ -78,7 +75,7 @@ end
 local function SyncString(syncInstance, str, onSyncAction)
   syncInstance.action = onSyncAction
 
-  printdf("sync: sync attempt from %s", GetPlayerName(syncInstance.sender))
+  --printdf("sync: sync attempt from %s", GetPlayerName(syncInstance.sender))
 
   if(GetLocalPlayer() == syncInstance.sender)then
     if(str == nil) then return end
@@ -86,8 +83,6 @@ local function SyncString(syncInstance, str, onSyncAction)
     SaveStr(hashtable, PARENT_KEY, syncInstance.key, str)
     SyncSavedString(hashtable, PARENT_KEY, syncInstance.key)
   end
-
-  printd("sync: string sent")
 end
 
 local function InitSync()
@@ -99,14 +94,15 @@ local function InitSync()
   end
 
   local function On_Sync()
-    printd("sync: sync trig activated")
 
+    --[[
+    printd("sync: sync trig activated")
     local key = GetSyncSavedChildKey()
     local data = LoadStr(hashtable, PARENT_KEY, key)
     local stamp = GetTimeStamp(true, 1)
     Logger.SendDebug("[%s] sync data arrived: [%s] = %s", stamp, key, data)
+    ]]
 
-    --[[
     local key = GetSyncSavedChildKey()
     ---@type syncInstance
     local syncInstance = branch[key]
@@ -114,7 +110,6 @@ local function InitSync()
     syncInstance.action(syncInstance.sender, LoadStr(hashtable, PARENT_KEY, key))
 
     RemoveSavedString(hashtable, PARENT_KEY, key)
-    ]]
   end
 
   TriggerAddAction(trig, On_Sync)

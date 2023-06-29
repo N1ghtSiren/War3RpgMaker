@@ -24,8 +24,7 @@ code:
 SDoFile("libs\\modules\\saveloader\\modules\\base64.lua")
 SDoFile("libs\\modules\\saveloader\\modules\\json.lua")
 SDoFile("libs\\modules\\saveloader\\modules\\Sync.lua")
---SDoFile("libs\\modules\\saveloader\\modules\\DriveAccessor.lua")
-SDoFile("libs\\modules\\saveloader\\modules\\DriveAccessorOld.lua")
+SDoFile("libs\\modules\\saveloader\\modules\\DriveAccessor.lua")
 SDoFile("libs\\modules\\saveloader\\modules\\ChatRecorder.lua")
 SDoFile("libs\\modules\\saveloader\\modules\\ContentEncoder.lua")
 SDoFile("libs\\modules\\saveloader\\modules\\SavedataGenerator.lua")
@@ -73,12 +72,8 @@ local function TrySavePlayer(player, filename, onSuccess)
     end
   end
 
-  printd("sync attempt")
-
   syncInstance = Sync.PrepareInstance(player)
   Sync.SyncString(syncInstance, is_valid and "true" or "false", function(sender, sync_data)
-    printd("sync passed")
-
     if(sync_data == "true")then
       if(onSuccess~=nil)then
         onSuccess(sender, savedata)
@@ -136,24 +131,14 @@ local function TryLoadFile(player, filename, onLoadSuccess)
 
   ::syncAttempt::
 
-  printd("sync attempt")
-
   syncInstance = Sync.PrepareInstance(player, 60)
   Sync.SyncString(syncInstance, savecode, function(sender, sync_data)
     local _, portable = ContentEncoder.Decode(sync_data)
-    printd("sync passed")
 
     local save_data = SavedataGenerator.RestorePortableData(sender, portable)
-    printdf("args: player: %s, sync_data: %s", sender, sync_data)
-
-    printdf("calling onLoadSuccess: %s", onLoadSuccess)
     if(onLoadSuccess~=nil)then
       onLoadSuccess(sender, save_data)
-
-      printdf("onLoadSuccess: done")
     end
-
-    printdf("sync callback done")
   end)
 end
 
@@ -209,7 +194,7 @@ local function Init()
   ChatCommandList.AddCommand(function(player, args)
     printdf("trying to load file from player %s", GetPlayerName(player))
     Saveloader.TryLoadFile(player, args, ON_LOAD_SUCCESS_CALLBACK)
-    printd("trying to load file finished")
+    printd("attempt to load file finished")
   end, "restores data from filename", {"-load"})
 
   is_inited = true

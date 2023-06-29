@@ -175,6 +175,7 @@ local CreateUnitOrigin = CreateUnit
 ---@return unit
 function CreateUnit(id, unitid, x, y, face)
   local u = CreateUnitOrigin(id, fourcc(unitid), x, y, face)
+  ApplyDefaultUnitStats(u)
   ExecuteUnitExEvent2(unitid, EX_EVENT_UNIT_C_CREATED, u)
   return u
 end

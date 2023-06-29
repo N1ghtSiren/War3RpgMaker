@@ -27,6 +27,8 @@ local units = {}
 ---@param player player
 ---@param unit unit
 function SetPlayerHero(player, unit)
+  if(IsUnitType(unit, UNIT_TYPE_HERO) == false)then return end
+
   local pid = GetPlayerId(player)
   units[pid] = unit
 end

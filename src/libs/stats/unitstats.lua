@@ -129,9 +129,6 @@ function RegisterDefaultUnitStats_A(unitid, damage, armour, life, mana, life_reg
   DEFAULT_UNIT_STATS[unitid][STAT_KEY_LIFE_REGEN] = life_regen
   DEFAULT_UNIT_STATS[unitid][STAT_KEY_MANA_REGEN] = mana_regen
   DEFAULT_UNIT_STATS[unitid][STAT_KEY_MOVE_SPEED] = move_speed
-
-
-  RegisterUnitExEvent2_IgnoreDuplicates(unitid, EX_EVENT_UNIT_C_CREATED, ApplyDefaultUnitStats)
 end
 
 
@@ -147,8 +144,6 @@ function RegisterDefaultUnitStats_B(unitid, str, agi, int)
   DEFAULT_UNIT_STATS[unitid][STAT_KEY_STR] = str
   DEFAULT_UNIT_STATS[unitid][STAT_KEY_AGI] = agi
   DEFAULT_UNIT_STATS[unitid][STAT_KEY_INT] = int
-
-  RegisterUnitExEvent2_IgnoreDuplicates(unitid, EX_EVENT_UNIT_C_CREATED, ApplyDefaultUnitStats)
 end
 
 ---@param unitid integer|string
@@ -159,7 +154,5 @@ function RegisterDefaultUnitStats_C(unitid, base_as_cd)
   DEFAULT_UNIT_STATS[unitid] = DEFAULT_UNIT_STATS[unitid] or NewOrderedTable()
 
   DEFAULT_UNIT_STATS[unitid][STAT_KEY_BASE_ATTACKSPEED] = base_as_cd
-
-  RegisterUnitExEvent2_IgnoreDuplicates(unitid, EX_EVENT_UNIT_C_CREATED, ApplyDefaultUnitStats)
 end
 

@@ -91,8 +91,6 @@ function RegisterDefaultUnitStats_D(unitid, dps)
   DEFAULT_UNIT_STATS[unitid] = DEFAULT_UNIT_STATS[unitid] or NewOrderedTable()
 
   DEFAULT_UNIT_STATS[unitid][STAT_KEY_DPS] = dps
-
-  RegisterUnitExEvent2_IgnoreDuplicates(unitid, EX_EVENT_UNIT_C_CREATED, ApplyDefaultUnitStats)
 end
 
 ---------------------------------------------------------------------------------------------------
